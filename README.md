@@ -1,17 +1,83 @@
 # แบบทดสอบ Fullstack Developer (Specialized HR/Payroll)
 
+```git version 2.45.2.windows.1```
+
+## ข้อ 1: The Buggy Payroll Logic
+URL: https://github.com/1Dev04/emwork-full-code.git
+
+## ข้อ 2: The Midnight Shift SQL
+#### Query:
+```
+SELECT
+    e.emp_id,
+    e.name,
+    a.clock_in,
+    TIMESTAMPDIFF(MINUTE, '2026-03-19 00:05:00', a.clock_in) AS late_minutes
+
+FROM attendance a
+JOIN employees e ON e.emp_id = a.emp_id
+JOIN shifts    s ON s.emp_id = a.emp_id
+               AND s.shift_date = '2026-03-19'
+               AND s.shift_type = 'NIGHT'
+
+WHERE
+    -- รองรับสแกนข้ามคืน 23:45 วันที่ 18
+    a.clock_in BETWEEN '2026-03-18 23:45:00' AND '2026-03-19 08:00:00'
+    -- มาสายคือหลัง 00:05
+    AND a.clock_in > '2026-03-19 00:05:00'
+
+ORDER BY late_minutes DESC;
+```
+
+## ข้อ 3: System Design & Audit Trail
+#### Query:
+```
+-- ตารางหลัก
+CREATE TABLE salaries (
+    emp_id      INT PRIMARY KEY,
+    base_salary DECIMAL(15,2) NOT NULL,
+    updated_at  DATETIME
+);
+
+-- Audit Log (ลบไม่ได้, Immutable)
+CREATE TABLE salary_audit_logs (
+    id           BIGINT PRIMARY KEY AUTO_INCREMENT,
+    emp_id       INT NOT NULL,
+    changed_by   INT NOT NULL,
+    old_salary   DECIMAL(15,2) NOT NULL,
+    new_salary   DECIMAL(15,2) NOT NULL,
+    reason       TEXT NOT NULL,
+    ip_address   VARCHAR(45),
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+#### API
+```
+POST   /api/salary-adjustments          ยื่นขอแก้
+PATCH  /api/salary-adjustments/{id}/approve   HR อนุมัติ
+GET    /api/employees/{empId}/audit-log        ดู history
+```
+#### ป้องกัน IT แก้เงินเดือนตัวเอง
+```
+1. App Layer  → if (actor.emp_id === empId) throw 403
+2. DB Layer   → REVOKE UPDATE ON salaries FROM 'it_user'
+3. Procedure  → IF p_emp_id = p_changed_by → SIGNAL ERROR
+4. Alert      → ทุก direct DB access แจ้ง Security ทันที
+```
+
 ### ส่วนที่ 2 — Business Analysis & Data Migration
 ---
 ## ข้อ 4: ManufacturePlus Scenario
+#### Functional Requirements 3 ข้อ:
 ```
-Functional Requirements 3 ข้อ
 - FR-01: Audit Log บันทึกทุกธุรกรรมวันลา — ใครทำ, เวลาไหน, เปลี่ยนอะไร
 - FR-02: Point Tracking สะสม Point จากการมางาน, ร่วมกิจกรรม, กรอก Daily Report → เชื่อมเกณฑ์ขึ้นเงินเดือน
 - FR-03: Leave Self-Service + Alert พนักงานแจ้งลาเอง → ระบบหักวันอัตโนมัติ → แจ้งเตือนเมื่อวันลาเหลือ ≤ 2 วัน
 ```
 ## ข้อ 5: Database Modeling for Shifts
+#### ER Diagram:
 ```
-ER Diagram (Flow ตาม Module ที่วางไว้)
+(Flow ตาม Module ที่วางไว้)
 EMPLOYEE (1) ──< SHIFT_SWAP_REQUEST >── (1) EMPLOYEE
                     │
                     ├──> AUDIT_LOG
@@ -19,7 +85,9 @@ EMPLOYEE (1) ──< SHIFT_SWAP_REQUEST >── (1) EMPLOYEE
                     ├──> SHIFT_SCHEDULE
                     │
                     └──> OT_CALCULATION ──> PAYROLL_RESULT
-Tables หลัก
+```
+#### Tables
+```
 employees        -- employee_id (PK) | name | base_salary
 shifts           -- shift_id (PK) | shift_name | start_time | end_time | is_night | allowance
 shift_schedules  -- schedule_id (PK) | employee_id | shift_id | work_date | status
@@ -27,10 +95,12 @@ shift_swap_requests -- request_id (PK) | requester_id | receiver_id | status(pen
 audit_logs       -- log_id (PK) | request_id | action | actor_id | old_status | new_status | timestamp
 ot_calculations  -- ot_id (PK) | employee_id | request_id | is_night | night_allowance | ot_amount
 payroll_results  -- payroll_id (PK) | employee_id | base_salary | night_allowance | ot_amount | total_pay
-
-OT Logic
+```
+#### OT Logic:
+```
 swap approved → ดึง actual_shift หลัง swap → is_night = true → บวก night_allowance → วันหยุด → คำนวณ ot_amount → บันทึก payroll_results
 ```
+
 ### ส่วนที่ 3 — AI Integration & Supervision
 ---
 ## ข้อ 6: Smart Policy Bot

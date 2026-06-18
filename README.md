@@ -1,6 +1,37 @@
 # แบบทดสอบ Fullstack Developer (Specialized HR/Payroll)
 
-### 3. AI Integration & Supervision
+### ส่วนที่ 2 — Business Analysis & Data Migration
+---
+## ข้อ 4: ManufacturePlus Scenario
+```
+Functional Requirements 3 ข้อ
+- FR-01: Audit Log บันทึกทุกธุรกรรมวันลา — ใครทำ, เวลาไหน, เปลี่ยนอะไร
+- FR-02: Point Tracking สะสม Point จากการมางาน, ร่วมกิจกรรม, กรอก Daily Report → เชื่อมเกณฑ์ขึ้นเงินเดือน
+- FR-03: Leave Self-Service + Alert พนักงานแจ้งลาเอง → ระบบหักวันอัตโนมัติ → แจ้งเตือนเมื่อวันลาเหลือ ≤ 2 วัน
+```
+## ข้อ 5: Database Modeling for Shifts
+```
+ER Diagram (Flow ตาม Module ที่วางไว้)
+EMPLOYEE (1) ──< SHIFT_SWAP_REQUEST >── (1) EMPLOYEE
+                    │
+                    ├──> AUDIT_LOG
+                    │
+                    ├──> SHIFT_SCHEDULE
+                    │
+                    └──> OT_CALCULATION ──> PAYROLL_RESULT
+Tables หลัก
+employees        -- employee_id (PK) | name | base_salary
+shifts           -- shift_id (PK) | shift_name | start_time | end_time | is_night | allowance
+shift_schedules  -- schedule_id (PK) | employee_id | shift_id | work_date | status
+shift_swap_requests -- request_id (PK) | requester_id | receiver_id | status(pending/approved/rejected) | approved_by
+audit_logs       -- log_id (PK) | request_id | action | actor_id | old_status | new_status | timestamp
+ot_calculations  -- ot_id (PK) | employee_id | request_id | is_night | night_allowance | ot_amount
+payroll_results  -- payroll_id (PK) | employee_id | base_salary | night_allowance | ot_amount | total_pay
+
+OT Logic
+swap approved → ดึง actual_shift หลัง swap → is_night = true → บวก night_allowance → วันหยุด → คำนวณ ot_amount → บันทึก payroll_results
+```
+### ส่วนที่ 3 — AI Integration & Supervision
 ---
 ## ข้อ 6: Smart Policy Bot
 #### Prompt:

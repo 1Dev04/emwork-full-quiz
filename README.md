@@ -65,7 +65,6 @@ GET    /api/employees/{empId}/audit-log        ดู history
 4. Alert      → ทุก direct DB access แจ้ง Security ทันที
 ```
 
-### ส่วนที่ 2 — Business Analysis & Data Migration
 ---
 ## ข้อ 4: ManufacturePlus Scenario
 #### Functional Requirements 3 ข้อ:
